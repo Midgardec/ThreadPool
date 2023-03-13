@@ -21,6 +21,7 @@ public:
                         std::unique_lock<std::mutex> lock(mutex_);
                         // Ожидаем, пока в очереди появится новая задача или не придет сигнал остановки
                         condition_.wait(lock, [this] { return !tasks_.empty() || stop_; });
+
                         // Если пришел сигнал остановки и в очереди больше нет задач, завершаем работу потока
                         if (stop_ && tasks_.empty()) {
                             return;
@@ -28,10 +29,11 @@ public:
                         task = std::move(tasks_.front());
                         tasks_.pop();
                     }
-                    // Выполняем задачу
+
                     try {
+                        // Выполняем задачу
                         task();
-                    } catch (const std::exception& e) {
+                    } catch (const std::exception &e) {
                         std::cerr << "Exception in ThreadPool task: " << e.what() << std::endl;
                     }
                     {
@@ -45,14 +47,14 @@ public:
         }
     }
 
-    // Деструктор останавливает все потоки и дожидается их завершения
+// Деструктор останавливает все потоки и дожидается их завершения
     ~ThreadPool() {
         {
             std::unique_lock<std::mutex> lock(mutex_);
             stop_ = true;
         }
         condition_.notify_all();
-        for (auto& thread : threads_) {
+        for (auto &thread: threads_) {
             thread.join();
         }
     }
@@ -78,9 +80,10 @@ public:
         completed_tasks_.erase(task_id);
     }
 
-
+    // Ожидает завершения всех задач в пуле
     void wait_all() {
         std::unique_lock<std::mutex> lock(mutex_);
+        // Ожидаем, пока в очереди нет задач и выполнены все задачи, добавленные ранее
         condition_.wait(lock, [this] {
             return tasks_.empty() && completed_tasks_.size() == next_task_id_ - 1;
         });
@@ -88,7 +91,15 @@ public:
     }
 
 private:
+
     class Task {
+        /*
+         * Класс Task, который инкапсулирует задачу, добавляемую в пул потоков.
+
+         Класс Task содержит приватный член func_, который хранит функцию задачи,
+         и открытый метод operator(), который вызывает эту функцию.
+         Также в классе есть открытый член id, который хранит уникальный идентификатор задачи.
+        */
     public:
         Task() = default;
 
@@ -103,11 +114,11 @@ private:
         std::function<void()> func_;
     };
 
-    std::queue<Task> tasks_;
-    std::set<uint64_t> completed_tasks_;
-    std::vector<std::thread> threads_;
-    std::mutex mutex_;
-    std::condition_variable condition_;
-    bool stop_ = false;
-    uint64_t next_task_id_ = 0;
+    std::queue<Task> tasks_;//очередь задач, которые будут выполнены потоками пула
+    std::set<uint64_t> completed_tasks_;//множество идентификаторов выполненных задач.
+    std::vector<std::thread> threads_;//вектор потоков пула.
+    std::mutex mutex_;//мьютекс для синхронизации доступа к общим данным.
+    std::condition_variable condition_;//условная переменная для уведомления потоков о наличии новой задачи в очереди
+    bool stop_ = false;// флаг, указывающий на остановку потоков пула.
+    uint64_t next_task_id_ = 0;//уникальный идентификатор для следующей добавляемой задачи.
 };

@@ -28,8 +28,9 @@ int main() {
 
     // ждем выполнения задачи с id = task_ids[1]
 
-    pool.wait(task_ids[3]);
-    /*pool.wait(task_ids[2]);*/
+    pool.wait(task_ids[1]);
+
+
     // ждем выполнения всех задач в пуле
     pool.wait_all();
 
